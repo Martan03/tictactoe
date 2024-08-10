@@ -2,6 +2,8 @@
 
 TicTacToe TUI implementation in Rust 🦀
 
+![image](https://github.com/user-attachments/assets/09a821d1-a0d9-4f5c-8d3e-cc62dce1cb13)
+
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
@@ -50,6 +52,8 @@ selected cell.
 
 When any player reaches set win length (by default 5), the winning sequence
 gets crossed out. The game then can be restarted by pressing `r` key.
+
+![image](https://github.com/user-attachments/assets/09a821d1-a0d9-4f5c-8d3e-cc62dce1cb13)
 
 ## Links
 
