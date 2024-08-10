@@ -6,6 +6,8 @@ use termint::{enums::Color, widgets::StrSpanExtension};
 mod app;
 mod args;
 mod board;
+mod board_tui;
+mod cell;
 mod error;
 
 fn main() {

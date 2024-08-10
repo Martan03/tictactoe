@@ -12,13 +12,10 @@ use termint::{
     enums::{Color, Modifier},
     geometry::{Constraint, TextAlign},
     term::Term,
-    widgets::{Layout, Paragraph, Spacer, StrSpanExtension},
+    widgets::{Layout, Paragraph, StrSpanExtension},
 };
 
-use crate::{
-    board::{Board, Cell},
-    error::Error,
-};
+use crate::{board::Board, cell::Cell, error::Error};
 
 /// App struct containing the main loop, key listeners and rendering
 #[derive(Debug)]
@@ -41,8 +38,9 @@ impl App {
         };
 
         Self {
+            term: Term::new().small_screen(App::small_screen()),
             board: Board::new(w, h, win),
-            ..Default::default()
+            player: Cell::Cross,
         }
     }
 
@@ -78,11 +76,9 @@ impl App {
 
     /// Renders current screen of the [`App`]
     pub fn render(&mut self) -> Result<(), Error> {
-        let mut layout = Layout::vertical();
-        layout.add_child(Spacer::new(), Constraint::Fill);
+        let mut layout = Layout::vertical().center();
         layout.add_child(self.board.clone(), Constraint::Min(0));
         layout.add_child(self.render_state(), Constraint::Min(0));
-        layout.add_child(Spacer::new(), Constraint::Fill);
 
         let mut main = Layout::horizontal().center();
         main.add_child(layout, Constraint::Min(0));
@@ -98,18 +94,10 @@ impl App {
         };
 
         match code {
-            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                self.board.up();
-            }
-            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                self.board.down();
-            }
-            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
-                self.board.right();
-            }
-            KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
-                self.board.left();
-            }
+            KeyCode::Up | KeyCode::Char('k') => self.board.up(),
+            KeyCode::Down | KeyCode::Char('j') => self.board.down(),
+            KeyCode::Right | KeyCode::Char('l') => self.board.right(),
+            KeyCode::Left | KeyCode::Char('h') => self.board.left(),
             KeyCode::Enter => {
                 if self.board.set_selected(self.player).is_ok() {
                     self.player = self.player.next();
@@ -119,22 +107,10 @@ impl App {
                 self.board.restart();
                 self.player = Cell::Cross;
             }
-            KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                return Err(Error::Exit)
-            }
+            KeyCode::Esc | KeyCode::Char('q') => return Err(Error::Exit),
             _ => return Ok(()),
         }
         self.render()
-    }
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            term: Term::new().small_screen(App::small_screen()),
-            board: Board::new(3, 3, 3),
-            player: Cell::Cross,
-        }
     }
 }
 
