@@ -1,18 +1,18 @@
 use std::{
-    cmp::max,
+    cmp::{max, min},
     io::{stdout, Write},
     time::Duration,
 };
 
 use crossterm::{
-    event::{poll, read, Event, KeyCode, KeyEvent},
+    event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use termint::{
     enums::{Color, Modifier},
-    geometry::{Constraint, TextAlign},
+    geometry::{Constraint, Coords, TextAlign},
     term::Term,
-    widgets::{Layout, Paragraph, StrSpanExtension},
+    widgets::{Layout, Paragraph, StrSpanExtension, Widget},
 };
 
 use crate::{board::Board, cell::Cell, error::Error};
@@ -27,15 +27,12 @@ pub struct App {
 
 impl App {
     /// Creates new [`App`] with board with given size and win length
-    pub fn new(
-        width: Option<usize>,
-        height: Option<usize>,
-        win: usize,
-    ) -> Self {
-        let (w, h) = match (width, height) {
-            (Some(w), Some(h)) => (w, h),
-            _ => App::fullscreen_size(win),
+    pub fn new(size: Option<Coords>, win: Option<usize>) -> Self {
+        let (w, h) = match size {
+            Some(c) => (c.x, c.y),
+            _ => App::fullscreen_size(),
         };
+        let win = win.unwrap_or(min(max(w, h), 5));
 
         Self {
             term: Term::new().small_screen(App::small_screen()),
@@ -69,7 +66,7 @@ impl App {
         self.render()?;
         loop {
             if poll(Duration::from_millis(100))? {
-                self.key_listener()?;
+                self.event()?;
             }
         }
     }
@@ -77,23 +74,34 @@ impl App {
     /// Renders current screen of the [`App`]
     pub fn render(&mut self) -> Result<(), Error> {
         let mut layout = Layout::vertical().center();
-        layout.add_child(self.board.clone(), Constraint::Min(0));
         layout.add_child(self.render_state(), Constraint::Min(0));
+        layout.add_child(self.board.clone(), Constraint::Min(0));
 
-        let mut main = Layout::horizontal().center();
-        main.add_child(layout, Constraint::Min(0));
+        let mut center = Layout::horizontal().center();
+        center.add_child(layout, Constraint::Min(0));
+
+        let mut main = Layout::vertical();
+        main.add_child(center, Constraint::Fill);
+        main.add_child(Self::render_help(), Constraint::Min(0));
 
         self.term.render(main)?;
         Ok(())
     }
 
     /// Handles key listening
-    fn key_listener(&mut self) -> Result<(), Error> {
-        let Event::Key(KeyEvent { code, .. }) = read()? else {
-            return Ok(());
-        };
+    fn event(&mut self) -> Result<(), Error> {
+        match read()? {
+            Event::Key(e) => self.key_handler(e),
+            Event::Resize(_, _) => self.render(),
+            _ => Ok(()),
+        }
+    }
+}
 
-        match code {
+impl App {
+    /// Handles key events
+    fn key_handler(&mut self, event: KeyEvent) -> Result<(), Error> {
+        match event.code {
             KeyCode::Up | KeyCode::Char('k') => self.board.up(),
             KeyCode::Down | KeyCode::Char('j') => self.board.down(),
             KeyCode::Right | KeyCode::Char('l') => self.board.right(),
@@ -107,25 +115,33 @@ impl App {
                 self.board.restart();
                 self.player = Cell::Cross;
             }
+            KeyCode::Char('c')
+                if event.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                return Err(Error::Exit);
+            }
             KeyCode::Esc | KeyCode::Char('q') => return Err(Error::Exit),
             _ => return Ok(()),
         }
         self.render()
     }
-}
 
-impl App {
     /// Gets board size based on the current screen size.
     /// Minimum size is based on the win size.
-    fn fullscreen_size(win: usize) -> (usize, usize) {
+    fn fullscreen_size() -> (usize, usize) {
         Term::get_size()
             .map(|(w, h)| {
                 (
-                    max(w.saturating_sub(1) / 4, win),
-                    max(h.saturating_sub(2) / 2, win),
+                    max(w.saturating_sub(1) / 4, 3),
+                    max(
+                        h.saturating_sub(
+                            2 + Self::render_help().height(&Coords::new(w, h)),
+                        ) / 2,
+                        3,
+                    ),
                 )
             })
-            .unwrap_or((win, win))
+            .unwrap_or((3, 3))
     }
 
     /// Small screen to be displayed, when game can't fit
@@ -158,5 +174,16 @@ impl App {
             _ => "".to_span(),
         };
         Paragraph::new(vec![player.into(), msg.into()]).separator(" ")
+    }
+
+    /// Renders help with all the keybinds
+    fn render_help() -> Paragraph {
+        Paragraph::new(vec![
+            "[Arrows/hjkl]Move".fg(Color::Gray).into(),
+            "[Enter]Place".fg(Color::Gray).into(),
+            "[r]Restart".fg(Color::Gray).into(),
+            "[Esc|q]Quit".fg(Color::Gray).into(),
+        ])
+        .separator("  ")
     }
 }

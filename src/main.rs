@@ -24,6 +24,6 @@ fn run() -> Result<(), Error> {
         return Ok(());
     }
 
-    let mut app = App::new(args.width, args.height, args.win_len);
+    let mut app = App::new(args.size, args.win_len);
     app.run()
 }

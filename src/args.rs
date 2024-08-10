@@ -1,5 +1,6 @@
 use termint::{
     enums::Color,
+    geometry::Coords,
     help,
     widgets::{Grad, StrSpanExtension},
 };
@@ -9,9 +10,8 @@ use crate::error::Error;
 /// Parses given arguments and checks for arguments conditions
 #[derive(Debug)]
 pub struct Args {
-    pub width: Option<usize>,
-    pub height: Option<usize>,
-    pub win_len: usize,
+    pub size: Option<Coords>,
+    pub win_len: Option<usize>,
     pub help: bool,
 }
 
@@ -57,12 +57,11 @@ impl Args {
     where
         T: Iterator<Item = String>,
     {
-        self.width = Some(Args::get_num(args)?);
-        self.height = Some(Args::get_num(args)?);
-
-        if self.width.unwrap() < 3 || self.height.unwrap() < 3 {
+        let size = Coords::new(Args::get_num(args)?, Args::get_num(args)?);
+        if size.x < 3 || size.y < 3 {
             return Err(Error::Msg("minimum supported size is 3".into()));
         }
+        self.size = Some(size);
         Ok(())
     }
 
@@ -71,8 +70,8 @@ impl Args {
     where
         T: Iterator<Item = String>,
     {
-        self.win_len = Args::get_num(args)?;
-        if self.win_len < 3 {
+        self.win_len = Some(Args::get_num(args)?);
+        if self.win_len.unwrap() < 3 {
             return Err(Error::Msg(
                 "minimum supported win length is 3".into(),
             ));
@@ -97,9 +96,8 @@ impl Args {
 impl Default for Args {
     fn default() -> Self {
         Self {
-            width: None,
-            height: None,
-            win_len: 5,
+            size: None,
+            win_len: None,
             help: false,
         }
     }

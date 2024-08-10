@@ -39,7 +39,7 @@ impl Board {
         cell: Cell,
         x: usize,
         y: usize,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<Cell>, Error> {
         if self.state.is_some() {
             return Err(Error::Msg("game ended".into()));
         }
@@ -49,14 +49,14 @@ impl Board {
             Cell::Empty => {
                 self.cells[id] = cell;
                 self.state = self.check_state();
-                Ok(())
+                Ok(self.state)
             }
             _ => Err(Error::Msg(String::from("Not empty cell"))),
         }
     }
 
     /// Sets selected cell to given value
-    pub fn set_selected(&mut self, cell: Cell) -> Result<(), Error> {
+    pub fn set_selected(&mut self, cell: Cell) -> Result<Option<Cell>, Error> {
         self.set(cell, self.selected.x, self.selected.y)
     }
 
