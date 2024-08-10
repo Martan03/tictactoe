@@ -1,4 +1,5 @@
 use std::{
+    cmp::max,
     io::{stdout, Write},
     time::Duration,
 };
@@ -19,28 +20,28 @@ use crate::{
     error::Error,
 };
 
-/// Represents game state
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum State {
-    Playing,
-    Win(Cell),
-    Draw,
-}
-
 /// App struct containing the main loop, key listeners and rendering
 #[derive(Debug)]
 pub struct App {
     pub term: Term,
     pub board: Board,
     pub player: Cell,
-    pub state: State,
 }
 
 impl App {
-    /// Creates new [`App`]
-    pub fn new() -> Self {
+    /// Creates new [`App`] with board with given size and win length
+    pub fn new(
+        width: Option<usize>,
+        height: Option<usize>,
+        win: usize,
+    ) -> Self {
+        let (w, h) = match (width, height) {
+            (Some(w), Some(h)) => (w, h),
+            _ => App::fullscreen_size(win),
+        };
+
         Self {
-            term: Term::new().small_screen(App::small_screen()),
+            board: Board::new(w, h, win),
             ..Default::default()
         }
     }
@@ -109,16 +110,13 @@ impl App {
             KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
                 self.board.left();
             }
-            KeyCode::Enter => match self.board.set_selected(self.player) {
-                Ok(s) => {
-                    self.state = s;
+            KeyCode::Enter => {
+                if self.board.set_selected(self.player).is_ok() {
                     self.player = self.player.next();
                 }
-                Err(_) => {}
-            },
+            }
             KeyCode::Char('r') | KeyCode::Char('R') => {
                 self.board.restart();
-                self.state = State::Playing;
                 self.player = Cell::Cross;
             }
             KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
@@ -136,12 +134,24 @@ impl Default for App {
             term: Term::new().small_screen(App::small_screen()),
             board: Board::new(3, 3, 3),
             player: Cell::Cross,
-            state: State::Playing,
         }
     }
 }
 
 impl App {
+    /// Gets board size based on the current screen size.
+    /// Minimum size is based on the win size.
+    fn fullscreen_size(win: usize) -> (usize, usize) {
+        Term::get_size()
+            .map(|(w, h)| {
+                (
+                    max(w.saturating_sub(1) / 4, win),
+                    max(h.saturating_sub(2) / 2, win),
+                )
+            })
+            .unwrap_or((win, win))
+    }
+
     /// Small screen to be displayed, when game can't fit
     fn small_screen() -> Layout {
         let mut layout = Layout::vertical().center();
@@ -160,10 +170,10 @@ impl App {
 
     /// Renders game state text
     fn render_state(&self) -> Paragraph {
-        let (player, msg) = match self.state {
-            State::Playing => (self.player, " turn."),
-            State::Win(plr) => (plr, " wins!"),
-            State::Draw => (Cell::Empty, "Draw!"),
+        let (player, msg) = match self.board.state() {
+            Some(Cell::Empty) => (Cell::Empty, "Draw!"),
+            None => (self.player, " turn."),
+            Some(plr) => (plr, " wins!"),
         };
 
         let player = match player {
