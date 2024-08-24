@@ -84,7 +84,7 @@ impl App {
 
         let mut main = Layout::vertical();
         main.add_child(center, Constraint::Fill);
-        main.add_child(Self::render_help(), Constraint::Min(0));
+        main.add_child(Self::render_help(), Constraint::Length(1));
 
         self.term.render(main)?;
         Ok(())
