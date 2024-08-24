@@ -18,7 +18,7 @@ impl Board {
     pub fn new(width: usize, height: usize, win_len: usize) -> Self {
         Self {
             cells: vec![Cell::Empty; width * height],
-            selected: Coords::new(0, 0),
+            selected: Coords::new(width / 2, height / 2),
             size: Coords::new(width, height),
             win_len,
             win: None,

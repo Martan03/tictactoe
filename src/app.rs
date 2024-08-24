@@ -12,7 +12,7 @@ use termint::{
     enums::{Color, Modifier},
     geometry::{Constraint, Coords, TextAlign},
     term::Term,
-    widgets::{Layout, Paragraph, StrSpanExtension, Widget},
+    widgets::{Layout, Paragraph, Spacer, StrSpanExtension, Text, Widget},
 };
 
 use crate::{board::Board, cell::Cell, error::Error};
@@ -23,6 +23,7 @@ pub struct App {
     pub term: Term,
     pub board: Board,
     pub player: Cell,
+    pub score: (usize, usize),
 }
 
 impl App {
@@ -38,6 +39,7 @@ impl App {
             term: Term::new().small_screen(App::small_screen()),
             board: Board::new(w, h, win),
             player: Cell::Cross,
+            score: (0, 0),
         }
     }
 
@@ -74,7 +76,7 @@ impl App {
     /// Renders current screen of the [`App`]
     pub fn render(&mut self) -> Result<(), Error> {
         let mut layout = Layout::vertical().center();
-        layout.add_child(self.render_state(), Constraint::Min(0));
+        layout.add_child(self.render_state(), Constraint::Length(1));
         layout.add_child(self.board.clone(), Constraint::Min(0));
 
         let mut center = Layout::horizontal().center();
@@ -106,15 +108,20 @@ impl App {
             KeyCode::Down | KeyCode::Char('j') => self.board.down(),
             KeyCode::Right | KeyCode::Char('l') => self.board.right(),
             KeyCode::Left | KeyCode::Char('h') => self.board.left(),
-            KeyCode::Enter => {
-                if self.board.set_selected(self.player).is_ok() {
-                    self.player = self.player.next();
+            KeyCode::Enter => match self.board.set_selected(self.player) {
+                Ok(Some(Cell::Cross)) => self.score.0 += 1,
+                Ok(Some(Cell::Circle)) => self.score.1 += 1,
+                Ok(Some(Cell::Empty)) => {
+                    self.score = (self.score.0 + 1, self.score.1 + 1)
                 }
-            }
-            KeyCode::Char('r') | KeyCode::Char('R') => {
+                Ok(_) => self.player = self.player.next(),
+                Err(_) => {}
+            },
+            KeyCode::Char('r') => {
                 self.board.restart();
                 self.player = Cell::Cross;
             }
+            KeyCode::Char('R') => self.score = (0, 0),
             KeyCode::Char('c')
                 if event.modifiers.contains(KeyModifiers::CONTROL) =>
             {
@@ -161,7 +168,7 @@ impl App {
     }
 
     /// Renders game state text
-    fn render_state(&self) -> Paragraph {
+    fn render_state(&self) -> Layout {
         let (player, msg) = match self.board.state() {
             Some(Cell::Empty) => (Cell::Empty, "Draw!"),
             None => (self.player, " turn."),
@@ -173,7 +180,25 @@ impl App {
             Cell::Cross => "X".fg(Color::Green),
             _ => "".to_span(),
         };
-        Paragraph::new(vec![player.into(), msg.into()]).separator(" ")
+        let stat_len = player.get_text().len() + msg.len();
+
+        let mut layout = Layout::horizontal();
+        let p = Paragraph::new(vec![player.into(), msg.into()]).separator(" ");
+        layout.add_child(p, Constraint::Min(0));
+
+        let score = format!("{}:{}", self.score.0, self.score.1);
+        if score.len() + stat_len <= self.board.width(&Coords::new(0, 0)) {
+            layout.add_child(Spacer::new(), Constraint::Fill);
+            layout.add_child(
+                Paragraph::new(vec![
+                    self.score.0.to_string().fg(Color::Green).into(),
+                    self.score.1.to_string().fg(Color::Red).into(),
+                ])
+                .separator(":"),
+                Constraint::Min(0),
+            );
+        }
+        layout
     }
 
     /// Renders help with all the keybinds
@@ -182,6 +207,7 @@ impl App {
             "[Arrows/hjkl]Move".fg(Color::Gray).into(),
             "[Enter]Place".fg(Color::Gray).into(),
             "[r]Restart".fg(Color::Gray).into(),
+            "[R]Resets score".fg(Color::Gray).into(),
             "[Esc|q]Quit".fg(Color::Gray).into(),
         ])
         .separator("  ")
