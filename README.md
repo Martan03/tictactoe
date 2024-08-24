@@ -8,7 +8,8 @@ TicTacToe TUI implementation in Rust 🦀
 - [Installation](#installation)
 - [Usage](#usage)
 - [Detailed description](#detailed-description)
-  - [TUI description & usage](#tui-description--usage) 
+  - [TUI description & usage](#tui-description--usage)
+  - [Keybinds](#keybinds)
 - [Links](#links)
 
 ## Installation
@@ -58,7 +59,10 @@ gets crossed out. The game then can be restarted by pressing `r` key.
 
 ![image](https://github.com/user-attachments/assets/5f9649f7-bc27-4c6a-9bdf-4c878a962ccd)
 
-### Other keybinds
+### Keybinds
+- `Arrow` keys: moves selected cell
+- `Enter`: places symbol on selected cell
+- `r`: restarts the game
 - `R`: resets the score
 - `Esc`/`q`: exists the game
 
